@@ -1,0 +1,18 @@
+{
+  "name": "pulse",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pulse — ENT élève via École Directe et Pronote",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "express": "^5.1.0",
+    "groq-sdk": "^1.6.0",
+    "pawnote": "^1.6.2",
+    "start": "^5.1.0"
+  }
+}

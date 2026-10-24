@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Pulse</title>
+  <meta name="theme-color" content="#ffffff">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Pulse">
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <div id="auth">
+    <i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i>
+    <main class="auth-box">
+      <div class="logo-mark"><svg viewBox="0 0 48 48"><path pathLength="1" d="M5 25h9l4-12 7 23 5-15 3 4h10"/></svg></div>
+      <h1 id="pulse-title">Pulse</h1>
+      <p class="lead">Ton espace élève, en couleurs.</p>
+
+      <form id="login-form" class="panel">
+        <div class="seg" style="--n:2;--i:0">
+          <button type="button" class="tab on" data-provider="ecoledirecte">École Directe</button>
+          <button type="button" class="tab" data-provider="pronote">Pronote</button>
+        </div>
+        <label id="url-field" class="hidden">Adresse Pronote
+          <input id="url" type="url" placeholder="https://xxxx.index-education.net/pronote/">
+        </label>
+        <label>Identifiant <input id="identifiant" autocomplete="username" required></label>
+        <label>Mot de passe <input id="motdepasse" type="password" autocomplete="current-password" required></label>
+        <button class="primary" type="submit"><span>Se connecter</span></button>
+      </form>
+
+      <form id="twofa-form" class="panel hidden">
+        <h2>Vérification en deux étapes</h2>
+        <p id="twofa-question"></p>
+        <div id="twofa-choices" class="choices"></div>
+        <button class="primary" type="submit"><span>Valider</span></button>
+        <button type="button" id="twofa-cancel" class="link">Annuler</button>
+      </form>
+      <p id="message" role="alert"></p>
+    </main>
+  </div>
+
+  <div id="app" class="hidden">
+    <div id="netbar" class="netbar" role="status"></div>
+    <header class="top" id="top">
+      <button class="avatar" id="avatar" aria-label="Mes matières"></button>
+      <div class="namechip"><b id="who-name"></b><small id="who-school"></small></div>
+      <div class="top-actions">
+        <button id="subjbtn" class="ibtn" aria-label="Personnaliser les matières"></button>
+        <button id="theme" class="ibtn" aria-label="Changer le thème"></button>
+        <button id="logout" class="ibtn" aria-label="Se déconnecter"></button>
+      </div>
+    </header>
+    <main id="view"></main>
+    <nav id="nav" aria-label="Navigation"></nav>
+    <div id="pomo" class="pomo hidden" role="timer"></div>
+  </div>
+
+  <dialog id="sheet">
+    <div class="grab"></div>
+    <div class="sheet-head"><h2 id="sheet-title"></h2><button id="sheet-close" class="btn">Fermer</button></div>
+    <div id="sheet-body"></div>
+    <div id="sheet-foot" class="sheet-foot"></div>
+  </dialog>
+</body>
+</html>
