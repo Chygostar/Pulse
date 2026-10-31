@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { EcoleDirecteClient } from "./lib/ecoledirecte.js";
 import { fetchPronote, loginPronote } from "./lib/pronote.js";
+import * as stats from "./lib/stats.js";
 
 // Lecture minimale du fichier .env (GROQ_API_KEY, AI_MODEL)
 try {
@@ -23,6 +24,14 @@ const pendingEd = new Map();
 const app = express();
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
+// Comptage des visites de la page d'accueil (?src=tiktok pour suivre le lien de ta bio)
+app.use((req, _res, next) => {
+  if (req.method === "GET" && req.path === "/" && (req.headers.accept || "").includes("text/html")) {
+    const ip = String(req.headers["x-forwarded-for"] || req.ip || "").split(",")[0].trim();
+    stats.visit(ip, String(req.headers["user-agent"] || ""), String(req.query.src || ""));
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname, "public")));
 
 function getSession(req) {
@@ -43,11 +52,13 @@ function saveSession(res, data) {
 
 app.post("/api/login", async (req, res) => {
   const { provider, identifiant, motdepasse, url, username, password } = req.body || {};
+  stats.attempt();
   try {
     if (provider === "ecoledirecte") {
       const client = new EcoleDirecteClient();
       const result = await client.login(identifiant, motdepasse);
       if (result.needs2fa) {
+        stats.twofa();
         const pendingId = randomUUID();
         pendingEd.set(pendingId, { client, identifiant, motdepasse });
         return res.json({
@@ -58,6 +69,7 @@ app.post("/api/login", async (req, res) => {
           propositions: result.propositions,
         });
       }
+      stats.login("ecoledirecte", identifiant);
       saveSession(res, { provider: "ecoledirecte", client });
       return res.json({ ok: true, account: result.account, provider: "ecoledirecte" });
     }
@@ -68,6 +80,7 @@ app.post("/api/login", async (req, res) => {
         username: username || identifiant,
         password: password || motdepasse,
       });
+      stats.login("pronote", username || identifiant);
       saveSession(res, { provider: "pronote", session });
       return res.json({
         ok: true,
@@ -81,6 +94,7 @@ app.post("/api/login", async (req, res) => {
 
     return res.status(400).json({ ok: false, error: "Choisis École Directe ou Pronote." });
   } catch (error) {
+    stats.fail();
     return res.status(401).json({ ok: false, error: error.message });
   }
 });
@@ -101,9 +115,11 @@ app.post("/api/login/2fa", async (req, res) => {
     if (result.needs2fa) {
       return res.status(401).json({ ok: false, error: "La double authentification a échoué." });
     }
+    stats.login("ecoledirecte", pending.identifiant);
     saveSession(res, { provider: "ecoledirecte", client: pending.client });
     return res.json({ ok: true, account: result.account, provider: "ecoledirecte" });
   } catch (error) {
+    stats.fail();
     return res.status(401).json({ ok: false, error: error.message });
   }
 });
@@ -267,6 +283,24 @@ app.get("/api/ed/doc", async (req, res) => {
   } catch (error) {
     res.status(502).json({ ok: false, error: error.message });
   }
+});
+
+// Statistiques privées : /stats?token=TON_STATS_TOKEN (défini dans .env)
+const statsOk = (t) => !!process.env.STATS_TOKEN && process.env.STATS_TOKEN.length >= 12 && String(t || "") === process.env.STATS_TOKEN;
+app.get("/api/stats", (req, res) => {
+  if (!statsOk(req.query.token)) return res.status(404).end();
+  res.json({ ok: true, ...stats.summary() });
+});
+app.get("/stats", (req, res) => {
+  if (!statsOk(req.query.token)) return res.status(404).end();
+  const { totals: t, perDay, sources } = stats.summary(), e = (v) => String(v).replace(/[&<>"]/g, "");
+  const rows = perDay.map((d) => `<tr><td>${e(d.day)}</td><td>${d.visits}</td><td>${d.visitors}</td><td>${d.attempts}</td><td>${d.logins}</td><td>${d.newAccounts}</td></tr>`).join("");
+  const src = Object.entries(sources).map(([k, v]) => `<tr><td>${e(k)}</td><td>${v.visits}</td><td>${v.visitors}</td></tr>`).join("");
+  res.set("X-Robots-Tag", "noindex").type("html").send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stats Pulse</title>
+<style>body{font:16px system-ui;margin:20px;max-width:760px}td,th{padding:6px 12px;text-align:left;border-bottom:1px solid #ddd}.k{font-size:2rem;font-weight:800}.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.c{padding:14px;border-radius:14px;background:#eef2f8}</style>
+<h1>Stats Pulse</h1><div class="g"><div class="c"><div class="k">${t.visits}</div>visites</div><div class="c"><div class="k">${t.attempts}</div>tentatives de connexion</div><div class="c"><div class="k">${t.logins}</div>connexions réussies</div><div class="c"><div class="k">${t.distinctAccounts}</div>comptes différents</div></div>
+<h2>Par source</h2><table><tr><th>Source</th><th>Visites</th><th>Visiteurs/jour</th></tr>${src || "<tr><td colspan=3>—</td></tr>"}</table>
+<h2>14 derniers jours</h2><table><tr><th>Jour</th><th>Visites</th><th>Visiteurs</th><th>Tentatives</th><th>Connexions</th><th>Nouveaux comptes</th></tr>${rows}</table>`);
 });
 
 app.post("/api/logout", (req, res) => {
